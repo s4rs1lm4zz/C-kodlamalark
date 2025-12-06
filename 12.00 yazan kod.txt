@@ -1,0 +1,122 @@
+#define F_CPU 2500000UL
+#include <avr/io.h>
+#include <util/delay.h>
+
+// 74HC595 kontrol pinleri
+#define DS   PIN5_bm  // Veri girişi (PA5)
+#define SHCP PIN7_bm  // Shift Clock (PA7)
+#define STCP PIN7_bm  // Storage Clock (PA7)
+#define OE   PIN6_bm  // Output Enable (PA6)
+
+// Dijit pinleri
+#define DIG1 PIN1_bm  // D1 (PA1)
+#define DIG2 PIN2_bm  // D2 (PA2)
+#define DIG3 PIN4_bm  // D3 (PA4)
+#define DIG4 PIN5_bm  // D4 (PB5)
+
+// Segmentleri temsil eden bit maskeleri
+#define SEG_A PIN4_bm  // Seg_A (PB4 - Doğrudan işlemciye bağlı)
+#define SEG_B PIN1_bm  // Seg_B (PB1 - Doğrudan işlemciye bağlı)
+#define SEG_C 0b10000000  // Q7
+#define SEG_D 0b01000000  // Q6
+#define SEG_E 0b00100000  // Q5
+#define SEG_F 0b00010000  // Q4
+#define SEG_G 0b00001000  // Q3
+
+// Sayılara göre segment maskeleri
+uint8_t digits[10] = {
+	SEG_C | SEG_D | SEG_E | SEG_F,      // "0"
+	SEG_C,                              // "1"
+	SEG_D | SEG_E | SEG_G,              // "2"
+	SEG_C | SEG_D | SEG_F | SEG_G,      // "3"
+	SEG_C | SEG_F | SEG_G,              // "4"
+	SEG_D | SEG_F | SEG_G,              // "5"
+	SEG_D | SEG_E | SEG_F | SEG_G,      // "6"
+	SEG_C,                              // "7"
+	SEG_C | SEG_D | SEG_E | SEG_F | SEG_G, // "8"
+	SEG_C | SEG_D | SEG_F | SEG_G       // "9"
+};
+
+void shift_register_send(uint8_t data) {
+	// Seri olarak veri gönder
+	for (int i = 0; i < 8; i++) {
+		if (data & (1 << (7 - i))) {
+			PORTA.OUTSET = DS;  // Bit HIGH ise veri hattını 1 yap
+			} else {
+			PORTA.OUTCLR = DS;  // Bit LOW ise veri hattını 0 yap
+		}
+
+		// Clock sinyali
+		PORTA.OUTSET = SHCP;  // Clock HIGH
+		PORTA.OUTCLR = SHCP;  // Clock LOW
+	}
+
+	// Latch sinyali
+	PORTA.OUTSET = STCP;  // Latch HIGH
+	PORTA.OUTCLR = STCP;  // Latch LOW
+}
+
+void enable_output(void) {
+	PORTA.OUTCLR = OE;  // OE pinini LOW yap (Çıkış aktif)
+}
+
+void disable_output(void) {
+	PORTA.OUTSET = OE;  // OE pinini HIGH yap (Çıkış devre dışı)
+}
+
+void display_digit(uint8_t digit, uint8_t segments, uint8_t seg_a, uint8_t seg_b) {
+	// Dijit seçimi
+	PORTA.OUTSET = DIG1 | DIG2 | DIG3;  // Tüm dijitleri pasif yap
+	PORTB.OUTSET = DIG4;                // D4'ü pasif yap
+
+	// İlgili dijiti aktif yap
+	switch (digit) {
+		case 1: PORTA.OUTCLR = DIG1; break;  // D1 aktif
+		case 2: PORTA.OUTCLR = DIG2; break;  // D2 aktif
+		case 3: PORTA.OUTCLR = DIG3; break;  // D3 aktif
+		case 4: PORTB.OUTCLR = DIG4; break;  // D4 aktif
+	}
+
+	// Segment A ve B'yi kontrol et
+	if (seg_a) {
+		PORTB.OUTSET = SEG_A;  // A segmentini yak
+		} else {
+		PORTB.OUTCLR = SEG_A;  // A segmentini söndür
+	}
+
+	if (seg_b) {
+		PORTB.OUTSET = SEG_B;  // B segmentini yak
+		} else {
+		PORTB.OUTCLR = SEG_B;  // B segmentini söndür
+	}
+
+	// Diğer segmentleri 74HC595 üzerinden gönder
+	shift_register_send(segments);  // Kalan segmentleri 74HC595 üzerinden gönder
+}
+
+int main(void) {
+	// Çıkış pinlerini ayarla
+	PORTA.DIRSET = DS | SHCP | STCP | OE | DIG1 | DIG2 | DIG3;
+	PORTB.DIRSET = DIG4 | SEG_A | SEG_B;
+
+	// 74HC595 çıkışlarını etkinleştir
+	enable_output();
+
+	while (1) {
+		// D1: SEG_B aktif, diğer segmentler "1"
+		display_digit(1, digits[1], 0, 1);
+		_delay_ms(5);
+
+		// D2: SEG_A ve SEG_B aktif, diğer segmentler "2"
+		display_digit(2, digits[2], 1, 1);
+		_delay_ms(5);
+
+		// D3: SEG_A ve SEG_B aktif, diğer segmentler "0"
+		display_digit(3, digits[0], 1, 1);
+		_delay_ms(5);
+
+		// D4: SEG_A ve SEG_B aktif, diğer segmentler "0"
+		display_digit(4, digits[0], 1, 1);
+		_delay_ms(5);
+	}
+}
