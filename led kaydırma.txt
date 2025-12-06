@@ -1,0 +1,55 @@
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <util/delay.h>
+#define ALLPINOUT	0xFF
+uint8_t LstartValue = 0b00000001;
+uint8_t RstartValue = 0b00100000;
+uint8_t LsendValue;
+uint8_t RsendValue;
+
+int main(void)
+{
+	DDRB = ALLPINOUT;
+	while (1)
+	{
+		LsendValue = LstartValue;
+		PORTB = LstartValue;
+		_delay_ms(100);
+		LstartValue = LstartValue <<1;
+		PORTB = LstartValue;
+		_delay_ms(100);
+	LstartValue = LstartValue <<1;
+	PORTB = LstartValue;
+	_delay_ms(100);
+	LstartValue = LstartValue <<1;
+	PORTB = LstartValue;
+	_delay_ms(100);
+	LstartValue = LstartValue <<1;
+	PORTB = LstartValue;
+	_delay_ms(100);
+	LstartValue = LstartValue <<1;
+	PORTB = LstartValue;
+	_delay_ms(100);
+	LstartValue=LsendValue;
+	
+	RsendValue = RstartValue;
+	PORTB = RstartValue;
+	_delay_ms(75);
+	RstartValue = RstartValue >>1;
+	PORTB = RstartValue;
+	_delay_ms(75);
+	RstartValue = RstartValue >>1;
+	PORTB = RstartValue;
+	_delay_ms(75);
+	RstartValue = RstartValue >>1;
+	PORTB = RstartValue;
+	_delay_ms(75);
+	RstartValue = RstartValue >>1;
+	PORTB = RstartValue;
+	_delay_ms(75);
+	RstartValue = RstartValue >>1;
+	PORTB = RstartValue;
+	_delay_ms(75);
+		RstartValue=RsendValue;	
+    }
+}
